@@ -1,0 +1,62 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars
+!terraform/*.tfvars.example
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

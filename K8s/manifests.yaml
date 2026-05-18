@@ -1,0 +1,175 @@
+# k8s/manifests.yaml
+# Deploys: demo app + Prometheus for the agent to monitor
+
+---
+# ── Namespace ────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+# ── Demo App Deployment ──────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: default
+  labels:
+    app: demo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+        - name: app
+          image: node:18-alpine
+          command: ["node", "-e"]
+          args:
+            - |
+              const http = require('http');
+              const os = require('os');
+              http.createServer((req, res) => {
+                if (req.url === '/health') {
+                  res.writeHead(200);
+                  res.end(JSON.stringify({status:'healthy',pod:os.hostname()}));
+                  return;
+                }
+                res.writeHead(200);
+                res.end(JSON.stringify({status:'ok',pod:os.hostname(),version:'1.0.0'}));
+              }).listen(3000, () => console.log('App running on 3000'));
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+---
+# ── Demo App Service ──────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: default
+spec:
+  selector:
+    app: demo-app
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP
+
+---
+# ── Horizontal Pod Autoscaler ─────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: demo-app-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: demo-app
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+---
+# ── Prometheus (minimal — for agent to query) ─────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.retention.time=1h"   # minimal retention = less storage cost
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+
+---
+# ── Prometheus Config ─────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+
+---
+# ── Prometheus Service ────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+  type: ClusterIP
