@@ -12,6 +12,7 @@ import os
 import json
 import logging
 import requests
+import base64
 from datetime import datetime, timezone
 from typing import Optional
 from kubernetes import client, config
@@ -19,12 +20,168 @@ from langchain.tools import tool
 
 logger = logging.getLogger(__name__)
 
+# ── EKS Programmatic Auth & Token Caching ──────────────────────────────────────
+import time
+import yaml
+import boto3
+from botocore.signers import RequestSigner
+
+_cached_token = None
+_token_expiry = 0
+
+def get_eks_token(cluster_name: str, region_name: str) -> str:
+    global _cached_token, _token_expiry
+    now = time.time()
+    if _cached_token and now < _token_expiry - 60:
+        return _cached_token
+        
+    session = boto3.Session()
+    sts_client = session.client('sts', region_name=region_name)
+    service_id = sts_client.meta.service_model.service_id
+    event_emitter = session._session.get_component('event_emitter')
+    
+    signer = RequestSigner(
+        service_id,
+        region_name,
+        'sts',
+        'v4',
+        session.get_credentials(),
+        event_emitter
+    )
+    
+    params = {
+        'method': 'GET',
+        'url': f'https://sts.{region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15',
+        'body': {},
+        'headers': {
+            'x-k8s-aws-id': cluster_name
+        },
+        'context': {}
+    }
+    
+    signed_url = signer.generate_presigned_url(
+        params,
+        region_name=region_name,
+        expires_in=60,
+        operation_name='GetCallerIdentity'
+    )
+    
+    base64_url = base64.urlsafe_b64encode(signed_url.encode('utf-8')).decode('utf-8').rstrip('=')
+    _cached_token = 'k8s-aws-v1.' + base64_url
+    _token_expiry = now + 14 * 60
+    
+    try:
+        update_local_kubeconfig(cluster_name, region_name, _cached_token)
+    except Exception as e:
+        logger.warning(f"Failed to update local kubeconfig: {e}")
+        
+    return _cached_token
+
+def update_local_kubeconfig(cluster_name: str, region_name: str, token: str):
+    kubeconfig_path = os.path.expanduser("~/.kube/config")
+    try:
+        import base64
+        import boto3
+        eks_client = boto3.client('eks', region_name=region_name)
+        cluster_info = eks_client.describe_cluster(name=cluster_name)['cluster']
+        endpoint = cluster_info['endpoint']
+        ca_data = cluster_info['certificateAuthority']['data']
+        
+        try:
+            with open(kubeconfig_path, "r") as f:
+                kubeconfig = yaml.safe_load(f) or {}
+        except Exception:
+            kubeconfig = {}
+            
+        kubeconfig.setdefault("apiVersion", "v1")
+        kubeconfig.setdefault("kind", "Config")
+        kubeconfig.setdefault("clusters", [])
+        kubeconfig.setdefault("contexts", [])
+        kubeconfig.setdefault("users", [])
+        
+        cluster_name_key = f"eks-{cluster_name}"
+        
+        # Cluster
+        cluster_found = False
+        for cl in kubeconfig["clusters"]:
+            if cl["name"] == cluster_name_key:
+                cl["cluster"] = {"certificate-authority-data": ca_data, "server": endpoint}
+                cluster_found = True
+                break
+        if not cluster_found:
+            kubeconfig["clusters"].append({"name": cluster_name_key, "cluster": {"certificate-authority-data": ca_data, "server": endpoint}})
+            
+        # User
+        user_found = False
+        for usr in kubeconfig["users"]:
+            if usr["name"] == cluster_name_key:
+                usr["user"] = {"token": token}
+                user_found = True
+                break
+        if not user_found:
+            kubeconfig["users"].append({"name": cluster_name_key, "user": {"token": token}})
+            
+        # Context
+        context_found = False
+        for ctx in kubeconfig["contexts"]:
+            if ctx["name"] == cluster_name_key:
+                ctx["context"] = {"cluster": cluster_name_key, "user": cluster_name_key}
+                context_found = True
+                break
+        if not context_found:
+            kubeconfig["contexts"].append({"name": cluster_name_key, "context": {"cluster": cluster_name_key, "user": cluster_name_key}})
+            
+        kubeconfig["current-context"] = cluster_name_key
+        
+        with open(kubeconfig_path, "w") as f:
+            yaml.safe_dump(kubeconfig, f, default_flow_style=False)
+    except Exception as e:
+        logger.error(f"Error in update_local_kubeconfig: {e}")
+
+_k8s_configured = False
+
 # ── Kubernetes client setup ───────────────────────────────────────────────────
 def get_k8s_client():
-    try:
-        config.load_kube_config()           # local kubeconfig
-    except Exception:
-        config.load_incluster_config()      # running inside cluster
+    global _k8s_configured
+    cluster_name = os.getenv("EKS_CLUSTER_NAME")
+    region_name = os.getenv("AWS_REGION", "us-east-1")
+    
+    if cluster_name:
+        try:
+            import base64
+            import boto3
+            import tempfile
+            eks_client = boto3.client('eks', region_name=region_name)
+            cluster_info = eks_client.describe_cluster(name=cluster_name)['cluster']
+            endpoint = cluster_info['endpoint']
+            ca_data = cluster_info['certificateAuthority']['data']
+            token = get_eks_token(cluster_name, region_name)
+            
+            ca_cert_file = tempfile.NamedTemporaryFile(delete=False)
+            ca_cert_file.write(base64.b64decode(ca_data))
+            ca_cert_file.close()
+            
+            configuration = client.Configuration()
+            configuration.host = endpoint
+            configuration.ssl_ca_cert = ca_cert_file.name
+            configuration.api_key['authorization'] = f'Bearer {token}'
+            
+            api_client = client.ApiClient(configuration)
+            return client.CoreV1Api(api_client), client.AppsV1Api(api_client)
+        except Exception as e:
+            logger.error(f"Failed programmatic EKS client setup, falling back: {e}")
+            
+    # Fallback to default loading
+    if not _k8s_configured:
+        try:
+            config.load_kube_config()
+        except Exception:
+            try:
+                config.load_incluster_config()
+            except Exception:
+                pass
+        _k8s_configured = True
+        
     return client.CoreV1Api(), client.AppsV1Api()
 
 

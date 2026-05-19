@@ -7,3 +7,5 @@ python-dotenv==1.0.1
 prometheus-api-client==0.5.5
 rich==13.7.1
 pydantic==2.7.4
+fastapi==0.111.0
+uvicorn==0.30.1

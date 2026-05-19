@@ -55,6 +55,7 @@ RULES:
 3. NEVER write "Action:" without immediately specifying a valid tool name
 4. If Kubernetes is unreachable, say so in Final Answer immediately
 5. Do not repeat the same action more than twice
+6. Your Final Answer MUST be extremely verbose, detailed, and comprehensive (minimum 300-500 words). You must present all pods and resources in a detailed markdown table (including columns for Pod Name, Status State, Ready Status, Restart Count, Age in minutes, and Host Node). Outline every single debugging step you performed, describe any potential root causes for anomalies, and provide an in-depth 3-step action plan for future remediation. Do not summarize or omit any information.
 
 {agent_scratchpad}"""
 

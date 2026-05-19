@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-base: #EAE8E2;
+  --bg-card: #F5F3EC;
+  --bg-card-solid: #F5F3EC;
+  --bg-glass: rgba(245, 243, 236, 0.95);
+  --bg-glass-2: rgba(18, 18, 18, 0.03);
+  --border: #121212;
+  --border-bright: #121212;
+
+  --text: #121212;
+  --text-dim: #4B4944;
+  --text-muted: #73716A;
+
+  /* Ink UI monochrome colors */
+  --green: #121212;
+  --green-glow: rgba(18, 18, 18, 0.05);
+
+  --cyan: #121212;
+  --cyan-glow: rgba(18, 18, 18, 0.05);
+
+  --purple: #121212;
+  --purple-glow: rgba(18, 18, 18, 0.05);
+
+  --orange: #73716A;
+  --orange-glow: rgba(115, 113, 106, 0.05);
+
+  --red: #121212;
+  --red-glow: rgba(18, 18, 18, 0.05);
+
+  /* Fallback aliases for other widgets */
+  --pink: #121212;
+  --pink-glow: rgba(18, 18, 18, 0.05);
+  --blue: #121212;
+  --blue-glow: rgba(18, 18, 18, 0.05);
+  --teal: #121212;
+  --teal-glow: rgba(18, 18, 18, 0.05);
+  --amber: #73716A;
+  --amber-glow: rgba(115, 113, 106, 0.05);
+
+  --r-xl: 12px;
+  --r-lg: 8px;
+  --r: 6px;
+  --r-sm: 4px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(18, 18, 18, 0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(18, 18, 18, 0.3); }
+
+/* ── Ink UI Paper Background ── */
+.ink-bg-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  overflow: hidden;
+  background-color: #F9F9F7;
+}
+
+.ink-noise {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── Editorial Glass base ── */
+.glass {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.01);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.glass:hover {
+  border-color: var(--border-bright);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* ── Animations ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(18, 18, 18, 0.15); }
+  70% { box-shadow: 0 0 0 6px rgba(18, 18, 18, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(18, 18, 18, 0); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

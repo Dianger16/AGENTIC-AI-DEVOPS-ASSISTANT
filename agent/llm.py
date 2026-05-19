@@ -61,6 +61,6 @@ def get_llm():
     return OpenRouterLLM(
         model=os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3-70b-instruct:nitro"),
         api_key=os.getenv("OPENROUTER_API_KEY", ""),
-        temperature=0.2,
-        max_tokens=1000,
+        temperature=0.7,
+        max_tokens=2000,
     )

@@ -1,0 +1,44 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge-green { 
+  background: var(--bg-card); 
+  color: #121212; 
+  border: 1px solid #121212; 
+}
+
+.badge-red { 
+  background: var(--bg-base);  
+  color: #121212;   
+  border: 1px solid var(--border);  
+}
+
+.badge-amber { 
+  background: var(--bg-base); 
+  color: var(--text-dim); 
+  border: 1px solid var(--border); 
+}
+
+.badge-blue { 
+  background: var(--bg-card); 
+  color: #121212;  
+  border: 1px solid #121212; 
+}
