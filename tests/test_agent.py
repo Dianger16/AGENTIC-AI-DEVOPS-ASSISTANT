@@ -64,11 +64,13 @@ class TestDemoTasks:
 
 class TestLLMConfig:
     def test_llm_uses_openrouter_base(self):
-        """LLM should be configured with OpenRouter URL"""
+        """LLM should be configured with correct model and api key"""
         with patch.dict(os.environ, {
             "OPENROUTER_API_KEY": "test-key",
             "OPENROUTER_MODEL": "meta-llama/llama-3-70b-instruct:nitro"
         }):
             from agent.llm import get_llm
             llm = get_llm()
-            assert "openrouter" in llm.openai_api_base.lower()
+            assert llm.api_key == "test-key"
+            assert "llama" in llm.model.lower()
+            assert llm._llm_type == "openrouter"

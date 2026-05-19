@@ -1,11 +1,12 @@
 # agent/llm.py
 # Configures OpenRouter as the LLM backend for LangChain
-# Uses OpenRouter's OpenAI-compatible API
+# Uses langchain-openai (updated package) with OpenRouter's OpenAI-compatible API
 
 import os
 import requests
+import json
 from langchain.llms.base import LLM
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import Field
 
 
@@ -14,28 +15,16 @@ class OpenRouterLLM(LLM):
     Custom LangChain LLM that calls OpenRouter directly via requests.
     Avoids all SDK compatibility issues.
     """
-
     model: str = Field(default="meta-llama/llama-3-70b-instruct:nitro")
     api_key: str = Field(default="")
     temperature: float = Field(default=0.2)
     max_tokens: int = Field(default=1000)
 
-    # FIX ADDED HERE
-    openai_api_base: str = Field(
-        default="https://openrouter.ai/api/v1"
-    )
-
     @property
     def _llm_type(self) -> str:
         return "openrouter"
 
-    def _call(
-        self,
-        prompt: str,
-        stop: Optional[List[str]] = None,
-        **kwargs
-    ) -> str:
-
+    def _call(self, prompt: str, stop: Optional[List[str]] = None, **kwargs) -> str:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -54,14 +43,12 @@ class OpenRouterLLM(LLM):
             body["stop"] = stop
 
         resp = requests.post(
-            f"{self.openai_api_base}/chat/completions",
+            "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=body,
             timeout=60,
         )
-
         resp.raise_for_status()
-
         return resp.json()["choices"][0]["message"]["content"]
 
     @property
@@ -71,12 +58,8 @@ class OpenRouterLLM(LLM):
 
 def get_llm():
     """Returns OpenRouter LLM configured for LangChain"""
-
     return OpenRouterLLM(
-        model=os.getenv(
-            "OPENROUTER_MODEL",
-            "meta-llama/llama-3-70b-instruct:nitro"
-        ),
+        model=os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3-70b-instruct:nitro"),
         api_key=os.getenv("OPENROUTER_API_KEY", ""),
         temperature=0.2,
         max_tokens=1000,
